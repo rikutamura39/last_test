@@ -14,7 +14,7 @@ import unicodedata
 from dotenv import load_dotenv
 import streamlit as st
 from docx import Document
-from langchain_community.document_loaders import WebBaseLoader
+from langchain_community.document_loaders import WebBaseLoader, TextLoader  # ← TextLoaderを追加
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -123,8 +123,8 @@ def initialize_retriever():
     
     # チャンク分割用のオブジェクトを作成
     text_splitter = CharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50,
+        chunk_size=ct.CHUNK_SIZE,         
+        chunk_overlap=ct.CHUNK_OVERLAP,    
         separator="\n"
     )
 
@@ -135,7 +135,9 @@ def initialize_retriever():
     db = Chroma.from_documents(splitted_docs, embedding=embeddings)
 
     # ベクターストアを検索するRetrieverの作成
-    st.session_state.retriever = db.as_retriever(search_kwargs={"k": 3})
+    st.session_state.retriever = db.as_retriever(
+        search_kwargs={"k": ct.RETRIEVER_TOP_K}  
+    )
 
 
 def initialize_session_state():
@@ -216,8 +218,15 @@ def file_load(path, docs_all):
     if file_extension in ct.SUPPORTED_EXTENSIONS:
         # ファイルの拡張子に合ったdata loaderを使ってデータ読み込み
         loader = ct.SUPPORTED_EXTENSIONS[file_extension](path)
-        docs = loader.load()
-        docs_all.extend(docs)
+    elif file_extension == ".txt":
+        # txtファイルはTextLoaderで読み込み
+        loader = TextLoader(path, encoding="utf-8")
+    else:
+        # 想定外の拡張子は無視
+        return
+
+    docs = loader.load()
+    docs_all.extend(docs)
 
 
 def adjust_string(s):

@@ -52,19 +52,19 @@ if not "initialized" in st.session_state:
     st.session_state.initialized = True
     logger.info(ct.APP_BOOT_MESSAGE)
 
-
 ############################################################
 # 4. 初期表示
 ############################################################
-# タイトル表示
+# ▼ サイドバーに「利用目的」の選択エリアを表示
+with st.sidebar:
+    cn.display_select_mode()
+    cn.display_initial_ai_message2()
+
+# ▼ メインエリアにタイトルを表示
 cn.display_app_title()
 
-# モード表示
-cn.display_select_mode()
-
-# AIメッセージの初期表示
+# ▼ メインエリアにAIメッセージを表示
 cn.display_initial_ai_message()
-
 
 ############################################################
 # 5. 会話ログの表示
@@ -147,6 +147,97 @@ if chat_message:
             st.error(utils.build_error_message(ct.DISP_ANSWER_ERROR_MESSAGE), icon=ct.ERROR_ICON)
             # 後続の処理を中断
             st.stop()
+
+    # # ==========================================
+    # # 7-3. LLMからの回答表示
+    # # ==========================================
+    # with st.chat_message("assistant"):
+    #     try:
+    #         # ==========================================
+    #         # モードが「社内文書検索」の場合
+    #         # ==========================================
+    #         if st.session_state.mode == ct.ANSWER_MODE_1:
+    #             # 入力内容と関連性が高い社内文書のありかを表示
+    #             content = cn.display_search_llm_response(llm_response)
+
+    #         # ==========================================
+    #         # モードが「社内問い合わせ」の場合
+    #         # ==========================================
+    #         elif st.session_state.mode == ct.ANSWER_MODE_2:
+    #             # 入力に対しての回答と、参照した文書のありかを表示
+    #             content = cn.display_contact_llm_response(llm_response)
+
+    #         # -----------------------------
+    #         # 参照した PDF のページ番号表示
+    #         # -----------------------------
+    #         from collections import defaultdict
+    #         pdf_pages = defaultdict(set)
+
+    #         # llm_response から "参照された Document のリスト" を取り出す
+    #         source_docs = None
+
+    #         if isinstance(llm_response, dict):
+    #             # RetrievalQA(Return_source_documents=True) などの典型パターン
+    #             source_docs = (
+    #                 llm_response.get("source_documents")
+    #                 or llm_response.get("documents")
+    #                 or llm_response.get("context")
+    #             )
+    #         elif hasattr(llm_response, "source_documents"):
+    #             # オブジェクトに source_documents 属性があるパターン
+    #             source_docs = getattr(llm_response, "source_documents")
+    #         elif isinstance(llm_response, list):
+    #             # そもそも Document のリストが返ってきているパターン
+    #             source_docs = llm_response
+
+    #         # 実際に PDF のページ情報を集計
+    #         if source_docs:
+    #             for doc in source_docs:
+    #                 # LangChain Document を想定（doc.metadata を持つ）
+    #                 metadata = getattr(doc, "metadata", {}) or {}
+    #                 source = metadata.get("source") or metadata.get("file_path")
+    #                 if not source or not str(source).lower().endswith(".pdf"):
+    #                     # PDF 以外はスキップ
+    #                     continue
+
+    #                 # ページ情報を複数キーから探す
+    #                 page = (
+    #                     metadata.get("page")
+    #                     or metadata.get("page_number")
+    #                     or metadata.get("page_no")
+    #                 )
+    #                 if page is None:
+    #                     continue
+
+    #                 # 多くの Loader（PyMuPDFLoader など）は 0 始まりなので +1
+    #                 try:
+    #                     page_int = int(page)
+    #                     page_no = page_int + 1
+    #                 except Exception:
+    #                     # 数値にできなければそのまま
+    #                     page_no = page
+
+    #                 pdf_pages[source].add(page_no)
+
+    #         # 1つ以上 PDF が参照されている場合のみ表示
+    #         if pdf_pages:
+    #             st.markdown("**参照したPDFのページ**")
+    #             for src, pages in pdf_pages.items():
+    #                 sorted_pages = sorted(pages)
+    #                 page_labels = "、".join(f"ページNo{p}" for p in sorted_pages)
+    #                 st.markdown(f"- `{src}`（{page_labels}）")
+
+    #         # AIメッセージのログ出力
+    #         logger.info({"message": content, "application_mode": st.session_state.mode})
+
+    #     except Exception as e:
+    #         # エラーログの出力
+    #         logger.error(f"{ct.DISP_ANSWER_ERROR_MESSAGE}\n{e}")
+    #         # エラーメッセージの画面表示
+    #         st.error(utils.build_error_message(ct.DISP_ANSWER_ERROR_MESSAGE), icon=ct.ERROR_ICON)
+    #         # 後続の処理を中断
+    #         st.stop()
+
 
     # ==========================================
     # 7-4. 会話ログへの追加

@@ -11,6 +11,23 @@ import constants as ct
 
 
 ############################################################
+# ヘルパー関数（★追加）
+############################################################
+def _format_page_suffix(page):
+    """
+    ページ番号を「（ページNo.◯）」形式の文字列に変換する。
+    Loader が 0 始まりの page を返すことが多いので +1 して表示する。
+    """
+    try:
+        p = int(page)
+        p_disp = p + 1
+    except Exception:
+        # 数値に変換できない場合はそのまま表示
+        p_disp = page
+    return f"（ページNo.{p_disp}）"
+
+
+############################################################
 # 関数定義
 ############################################################
 
@@ -42,8 +59,10 @@ def display_initial_ai_message():
     """
     with st.chat_message("assistant"):
         # 「st.success()」とすると緑枠で表示される
-        st.markdown("こんにちは。私は社内文書の情報をもとに回答する生成AIチャットボットです。上記で利用目的を選択し、画面下部のチャット欄からメッセージを送信してください。")
+        st.success("こんにちは。私は社内文書の情報をもとに回答する生成AIチャットボットです。上記で利用目的を選択し、画面下部のチャット欄からメッセージを送信してください。")
+        st.warning("⚠️具体的に入力したほうが期待通りの回答を得やすいです。")
 
+def display_initial_ai_message2():
         # 「社内文書検索」の機能説明
         st.markdown("**【「社内文書検索」を選択した場合】**")
         # 「st.info()」を使うと青枠で表示される
@@ -88,7 +107,8 @@ def display_conversation_log():
                         icon = utils.get_source_icon(message['content']['main_file_path'])
                         # 参照元ドキュメントのページ番号が取得できた場合にのみ、ページ番号を表示
                         if "main_page_number" in message["content"]:
-                            st.success(f"{message['content']['main_file_path']}", icon=icon)
+                            suffix = _format_page_suffix(message["content"]["main_page_number"])
+                            st.success(f"{message['content']['main_file_path']}{suffix}", icon=icon)
                         else:
                             st.success(f"{message['content']['main_file_path']}", icon=icon)
                         
@@ -105,7 +125,8 @@ def display_conversation_log():
                                 icon = utils.get_source_icon(sub_choice['source'])
                                 # 参照元ドキュメントのページ番号が取得できた場合にのみ、ページ番号を表示
                                 if "page_number" in sub_choice:
-                                    st.info(f"{sub_choice['source']}", icon=icon)
+                                    suffix = _format_page_suffix(sub_choice["page_number"])
+                                    st.info(f"{sub_choice['source']}{suffix}", icon=icon)
                                 else:
                                     st.info(f"{sub_choice['source']}", icon=icon)
                     # ファイルのありかの情報が取得できなかった場合、LLMからの回答のみ表示
@@ -147,7 +168,8 @@ def display_search_llm_response(llm_response):
         # ユーザー入力値と最も関連性が高いメインドキュメントのありかを表示
         # ==========================================
         # LLMからのレスポンス（辞書）の「context」属性の中の「0」に、最も関連性が高いドキュメント情報が入っている
-        main_file_path = llm_response["context"][0].metadata["source"]
+        main_document = llm_response["context"][0]
+        main_file_path = main_document.metadata["source"]
 
         # 補足メッセージの表示
         main_message = "入力内容に関する情報は、以下のファイルに含まれている可能性があります。"
@@ -156,11 +178,12 @@ def display_search_llm_response(llm_response):
         # 参照元のありかに応じて、適したアイコンを取得
         icon = utils.get_source_icon(main_file_path)
         # ページ番号が取得できた場合のみ、ページ番号を表示（ドキュメントによっては取得できない場合がある）
-        if "page" in llm_response["context"][0].metadata:
+        if "page" in main_document.metadata and str(main_file_path).lower().endswith(".pdf"):
             # ページ番号を取得
-            main_page_number = llm_response["context"][0].metadata["page"]
+            main_page_number = main_document.metadata["page"]
             # 「メインドキュメントのファイルパス」と「ページ番号」を表示
-            st.success(f"{main_file_path}", icon=icon)
+            suffix = _format_page_suffix(main_page_number)
+            st.success(f"{main_file_path}{suffix}", icon=icon)
         else:
             # 「メインドキュメントのファイルパス」を表示
             st.success(f"{main_file_path}", icon=icon)
@@ -191,7 +214,7 @@ def display_search_llm_response(llm_response):
             duplicate_check_list.append(sub_file_path)
             
             # ページ番号が取得できない場合のための分岐処理
-            if "page" in document.metadata:
+            if "page" in document.metadata and str(sub_file_path).lower().endswith(".pdf"):
                 # ページ番号を取得
                 sub_page_number = document.metadata["page"]
                 # 「サブドキュメントのファイルパス」と「ページ番号」の辞書を作成
@@ -214,9 +237,10 @@ def display_search_llm_response(llm_response):
                 # 参照元のありかに応じて、適したアイコンを取得
                 icon = utils.get_source_icon(sub_choice['source'])
                 # ページ番号が取得できない場合のための分岐処理
-                if "page_number" in sub_choice:
+                if "page_number" in sub_choice and str(sub_choice["source"]).lower().endswith(".pdf"):
                     # 「サブドキュメントのファイルパス」と「ページ番号」を表示
-                    st.info(f"{sub_choice['source']}", icon=icon)
+                    suffix = _format_page_suffix(sub_choice["page_number"])
+                    st.info(f"{sub_choice['source']}{suffix}", icon=icon)
                 else:
                     # 「サブドキュメントのファイルパス」を表示
                     st.info(f"{sub_choice['source']}", icon=icon)
@@ -233,7 +257,7 @@ def display_search_llm_response(llm_response):
         content["main_message"] = main_message
         content["main_file_path"] = main_file_path
         # メインドキュメントのページ番号は、取得できた場合にのみ追加
-        if "page" in llm_response["context"][0].metadata:
+        if "page" in main_document.metadata and str(main_file_path).lower().endswith(".pdf"):
             content["main_page_number"] = main_page_number
         # サブドキュメントの情報は、取得できた場合にのみ追加
         if sub_choices:
@@ -291,14 +315,11 @@ def display_contact_llm_response(llm_response):
             if file_path in file_path_list:
                 continue
 
-            # ページ番号が取得できた場合のみ、ページ番号を表示（ドキュメントによっては取得できない場合がある）
-            if "page" in document.metadata:
-                # ページ番号を取得
+            # ページ番号が取得できた場合のみ、ページ番号を表示（PDF のときだけ）
+            if str(file_path).lower().endswith(".pdf") and "page" in document.metadata:
                 page_number = document.metadata["page"]
-                # 「ファイルパス」と「ページ番号」
-                file_info = f"{file_path}"
+                file_info = f"{file_path}{_format_page_suffix(page_number)}"
             else:
-                # 「ファイルパス」のみ
                 file_info = f"{file_path}"
 
             # 参照元のありかに応じて、適したアイコンを取得
